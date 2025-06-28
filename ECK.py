@@ -16,7 +16,6 @@ class CandidateKeyGenerator:
         self.stats = {'closure_calls': 0, 'key_checks': 0}
         
     def _canonical_form(self):
-        """将函数依赖转换为规范形式 (右侧单属性)"""
         canonical_fds = []
         for L, R in self.D0:
             for attr in R:
@@ -24,7 +23,6 @@ class CandidateKeyGenerator:
         return canonical_fds
 
     def attribute_closure(self, X):
-        """计算属性闭包 X+"""
         self.stats['closure_calls'] += 1
         closure = set(X)
         changed = True
@@ -50,23 +48,23 @@ class CandidateKeyGenerator:
         return frozenset(K_prime)
 
     def find_all_keys(self):
-        """找到所有最小候选键 (Lucchasi-Osborn 算法)"""
-        # 重置统计
+        """Lucchasi-Osborn"""
+        
         self.stats = {'closure_calls': 0, 'key_checks': 0}
         
-        # 步骤1: 找到初始最小键
+        # Find minimal_key
         K0 = self.minimal_key(self.all_attrs)
         keys = {K0}
         queue = deque([K0])
         
-        # 步骤2: 使用引理4寻找其他键
+        
         while queue:
             K = queue.popleft()
             for L, R in self.fd_dict:
                 # 计算 S = L ∪ (K - R)
                 S = L | (K - R)
                 
-                # 检查S是否包含已有键
+                
                 if not any(J.issubset(S) for J in keys):
                     new_key = self.minimal_key(S)
                     if new_key not in keys:
@@ -119,10 +117,10 @@ class EmbeddedKeyGenerator:
             if E_prime.issubset(E) and K_prime.issubset(K):
                 return True
         
-        # 计算在 E 上的闭包
+        # attribute_closure in E
         closure = self.attribute_closure(K, E)
         
-        # 检查是否存在 eUC 满足条件
+        # check eUC 
         for E_prime, K_prime in self.K:
             if E_prime.issubset(E) and K_prime.issubset(closure):
                 return True
@@ -133,14 +131,14 @@ class EmbeddedKeyGenerator:
         K_prime = set(K)
         
         for attr in sorted(E, key=lambda x: random.random()):
-            # 情况1: 尝试同时移除嵌入属性和键属性
+            # Case 1: Attempt to remove both embedding attributes and key attributes simultaneously.
             test_key1 = (E_prime - {attr}, K_prime - {attr})
             if self.key_function(*test_key1):
                 E_prime -= {attr}
                 K_prime -= {attr}
                 continue
             
-            # 情况2: 仅当属性在键集中才尝试移除
+            # Case 2: Attempt removal only if the attribute is in the key set.
             if attr in K_prime:
                 test_key2 = (E_prime, K_prime - {attr})
                 if self.key_function(*test_key2):
@@ -152,12 +150,12 @@ class EmbeddedKeyGenerator:
         self.stats = {'closure_calls': 0, 'key_checks': 0}
         C = set()
         
-        # 处理初始 eUCs
+        # eUCs
         for E_uc, K_uc in self.K:
             min_key = self.minimal_embedded_key(E_uc, K_uc)
             C.add(min_key)
         
-        # Handle embedded FDs 生成新候选
+        # Handle embedded FDs 
         new_keys = True
         while new_keys:
             new_keys = False
@@ -200,11 +198,11 @@ def generate_test_data(num_attrs, num_fds, max_rhs=2):
         rhs = set(random.sample(attributes, rhs_size))
         std_fds.append((lhs, rhs))
     
-    # Generate embedded dependencies (简化版)
+    # Generate embedded dependencies
     embedded_ucs = []
     embedded_fds = []
     
-    # 随机创建1-2个eUC
+    # Randomly create 1–2 eUCs (embedded unary constraints).
     for _ in range(random.randint(1, 2)):
         e_size = random.randint(2, min(4, num_attrs))
         k_size = random.randint(1, e_size-1)
@@ -212,7 +210,7 @@ def generate_test_data(num_attrs, num_fds, max_rhs=2):
         K_uc = set(random.sample(list(E_uc), k_size))
         embedded_ucs.append((E_uc, K_uc))
     
-    # 创建eFDs (与标准FDs类似但带嵌入集)
+    # Create eFDs, which are similar to standard FDs but include an embedding set.
     for _ in range(num_fds):
         e_size = random.randint(1, min(3, num_attrs))
         E_fd = set(random.sample(attributes, e_size))
@@ -229,15 +227,15 @@ def generate_test_data(num_attrs, num_fds, max_rhs=2):
 
 # Revised theoretical model
 def calculate_eck_complexity(num_eck_keys, num_edeps, size):
-    # 1. 有效迭代因子 (0.1-0.3)
+    # 1. Effective iteration factor (0.1–0.3)
     effective_iter_factor = 0.2
     
-    # 2. 闭包计算复杂度 (基于平均嵌入集大小)
-    avg_embed_size = max(3, size * 0.4)  # 假设平均嵌入集大小
+    # 2. Closure computation complexity (based on average embedding set size)
+    avg_embed_size = max(3, size * 0.4)  # Assume an average embedding set size.
     closure_complexity = avg_embed_size ** 2
     
-    # 3. 最小化过程复杂度
-    minimization_ops = 1.5 * avg_embed_size  # 非最坏的 2|R|
+    # 3. Minimization process complexity
+    minimization_ops = 1.5 * avg_embed_size  # Non-worst-case 2|R|
     
     return int(
         num_eck_keys * num_edeps * effective_iter_factor *
@@ -264,13 +262,13 @@ def performance_test(max_size=25, step=5, num_trials=3):
         for _ in range(num_trials):
             data = generate_test_data(size, size - 2)
             
-            # 测试经典算法 (CK)
+            # CK
             start = time.perf_counter()
             ck_gen = CandidateKeyGenerator(data['attributes'], data['std_fds'])
             ck_keys, ck_stats = ck_gen.find_all_keys()
             ck_time = time.perf_counter() - start
             
-            # 测试嵌入式算法 (ECK)
+            # ECK
             start = time.perf_counter()
             eck_gen = EmbeddedKeyGenerator(
                 data['attributes'],
@@ -280,16 +278,16 @@ def performance_test(max_size=25, step=5, num_trials=3):
             eck_keys, eck_stats = eck_gen.find_all_embedded_keys()
             eck_time = time.perf_counter() - start
             
-            # 计算理论复杂度
+            # Compute theoretical complexity
             num_ck_keys = len(ck_keys)
             num_eck_keys = len(eck_keys)
             num_fds = len(data['std_fds'])
             num_edeps = len(data['embedded_ucs']) + len(data['embedded_fds'])
             
-            # 候选键理论复杂度: O(|D[O]|·|K|·|A|·(|K|+|A|))
+            # Theoretical complexity of candidate key computation: O(|D[O]|·|K|·|A|·(|K|+|A|))
             ck_theory = num_fds * num_ck_keys * size * (num_ck_keys + size)
             
-            # 嵌入式候选键理论复杂度: O(|C|·|D|·|R|·(|C|+|R|))
+            # Theoretical complexity of embedded candidate key computation: O(|C|·|D|·|R|·(|C|+|R|))
             eck_theory = num_eck_keys * num_edeps * size * (num_eck_keys + size)
             
             ck_times.append(ck_time)
@@ -303,7 +301,7 @@ def performance_test(max_size=25, step=5, num_trials=3):
             eck_complexity.append(eck_theory)
             eck_complexity_mod = calculate_eck_complexity(num_eck_keys, num_edeps, size)
         
-        # 计算平均值
+        # mean
         results.append({
             'size': size,
             'ck_time': np.mean(ck_times),
@@ -323,16 +321,16 @@ def performance_test(max_size=25, step=5, num_trials=3):
     return results
 
 def expansion_test(attributes, embedded_ucs, embedded_fds, samples_per_size=5):
-    """属性扩展测试 - 全面测试所有属性组合"""
+    """Attribute Expansion Test – Exhaustively test all attribute combinations"""
     results = []
-    base_sizes = [3, 5, 7]  # 三种不同的基础嵌入集大小
+    base_sizes = [3, 5, 7]  # Three different base embedding set sizes
     all_attributes = set(attributes)
     
     for base_size in base_sizes:
         if base_size > len(attributes):
             continue
             
-        # 生成所有可能的基础嵌入集组合
+        # Generate all possible combinations of base embedding sets
         base_sets = list(itertools.combinations(all_attributes, base_size))
         if len(base_sets) > samples_per_size:
             base_sets = random.sample(base_sets, samples_per_size)
@@ -341,16 +339,16 @@ def expansion_test(attributes, embedded_ucs, embedded_fds, samples_per_size=5):
             base_E = set(base_E)
             available = list(all_attributes - base_E)
             
-            # 基础集合测试
+            # Base set test
             eck_gen = EmbeddedKeyGenerator(attributes, embedded_ucs, embedded_fds)
             start = time.perf_counter()
             eck_gen.find_all_embedded_keys()
             base_time = time.perf_counter() - start
             results.append((f'Base {base_size}', base_size, base_time))
             
-            # 测试所有可能的扩展组合
+            # Test all possible expansion combinations
             for extension_size in range(1, len(available) + 1):
-                # 生成所有可能的扩展组合
+                # Generate all possible expansion combinations
                 extension_sets = list(itertools.combinations(available, extension_size))
                 if len(extension_sets) > samples_per_size:
                     extension_sets = random.sample(extension_sets, samples_per_size)
@@ -359,13 +357,13 @@ def expansion_test(attributes, embedded_ucs, embedded_fds, samples_per_size=5):
                 for extension in extension_sets:
                     current_E = base_E | set(extension)
                     
-                    # 测试扩展后的嵌入集
+                    # Test the expanded embedding sets
                     start = time.perf_counter()
                     eck_gen.find_all_embedded_keys()
                     exp_time = time.perf_counter() - start
                     extension_times.append(exp_time)
                 
-                # 记录每个属性大小的所有时间样本
+                # Record all time samples for each embedding set size
                 total_size = len(current_E)
                 for time_val in extension_times:
                     results.append((f'Size {base_size}', total_size, time_val))
@@ -376,14 +374,14 @@ def plot_performance_comparison(results):
     """ Plot performance comparison """
     plt.figure(figsize=(14, 10))
     
-    # 提取数据
+    # Extract data
     sizes = [res['size'] for res in results]
     ck_times = [res['ck_time'] for res in results]
     eck_times = [res['eck_time'] for res in results]
     ck_ops = [res['ck_ops'] for res in results]
     eck_ops = [res['eck_ops'] for res in results]
     
-    # 时间-规模对比图
+    # Time vs. Size comparison chart
     plt.subplot(2, 2, 1)
     plt.plot(sizes, ck_times, 'bo-', label='Classical Keys (CK)')
     plt.plot(sizes, eck_times, 'ro-', label='Embedded Keys (ECK)')
@@ -393,7 +391,7 @@ def plot_performance_comparison(results):
     plt.legend()
     plt.grid(True)
     
-    # 操作次数-规模对比图
+    # Operations vs. Size comparison chart
     plt.subplot(2, 2, 2)
     plt.plot(sizes, ck_ops, 'bo-', label='CK Operations')
     plt.plot(sizes, eck_ops, 'ro-', label='ECK Operations')
@@ -402,18 +400,18 @@ def plot_performance_comparison(results):
     plt.title('Operation Count Comparison')
     plt.legend()
     plt.grid(True)
-    plt.yscale('log')  # 对数尺度
+    plt.yscale('log')  # Logarithmic scale
     
-    # 理论复杂度曲线
+    # Theoretical complexity curve
     plt.subplot(2, 2, 3)
     
-    # 提取理论复杂度值
+    # Extract theoretical complexity values
     ck_complexity = [res['ck_complexity'] for res in results]
     ck_complexity_mod = [res['ck_complexity_mod'] for res in results]
     eck_complexity = [res['eck_complexity'] for res in results]
     eck_complexity_mod = [res['eck_complexity_mod'] for res in results]
     
-    # 归一化理论复杂度以便比较
+    # Normalize theoretical complexity for comparison
     if ck_ops and eck_ops:
         ck_norm_factor = ck_ops[0] / ck_complexity[0] if ck_complexity[0] != 0 else 1
         ck_mod_norm_factor = ck_ops[0] / ck_complexity_mod[0] if ck_complexity_mod[0] != 0 else 1
@@ -439,7 +437,7 @@ def plot_performance_comparison(results):
         plt.grid(True)
         plt.yscale('log')
     
-    # 相对性能对比
+    # performance comparison
     plt.subplot(2, 2, 4)
     ratios = [eck / ck for ck, eck in zip(ck_times, eck_times)]
     plt.plot(sizes, ratios, 'go-')
@@ -453,55 +451,6 @@ def plot_performance_comparison(results):
     plt.savefig('performance_comparison.png', dpi=300)
     plt.show()
 
-def plot_expansion_results(results):
-    """绘制扩展测试结果 - 箱线图展示不同属性大小的时间分布"""
-    plt.figure(figsize=(14, 8))
-    
-    # 按基础大小分组数据
-    grouped_data = {}
-    for desc, size, time_val in results:
-        if desc.startswith('Size'):
-            base_size = int(desc.split(' ')[1])
-            if base_size not in grouped_data:
-                grouped_data[base_size] = {}
-            if size not in grouped_data[base_size]:
-                grouped_data[base_size][size] = []
-            grouped_data[base_size][size].append(time_val)
-    
-    # 为每个基础大小创建子图
-    fig, axes = plt.subplots(1, len(grouped_data), figsize=(15, 6))
-    if len(grouped_data) == 1:
-        axes = [axes]
-    
-    for i, (base_size, size_data) in enumerate(grouped_data.items()):
-        ax = axes[i]
-        
-        # 准备箱线图数据
-        sizes_sorted = sorted(size_data.keys())
-        box_data = [size_data[size] for size in sizes_sorted]
-        
-        # 创建箱线图
-        box = ax.boxplot(box_data, positions=sizes_sorted, patch_artist=True, widths=0.6)
-        
-        # 设置箱线图颜色
-        colors = ['lightblue', 'lightgreen', 'salmon']
-        for patch in box['boxes']:
-            patch.set_facecolor(colors[i % len(colors)])
-        
-        # 添加均值线
-        means = [np.mean(times) for times in box_data]
-        ax.plot(sizes_sorted, means, 'ko-', label='Mean Time')
-        
-        ax.set_xlabel('Number of Attributes in Embedded Set')
-        ax.set_ylabel('Execution Time (s)')
-        ax.set_title(f'Base Size = {base_size} Attributes')
-        ax.set_xticks(sizes_sorted)
-        ax.grid(True, alpha=0.3)
-        ax.legend()
-    
-    plt.tight_layout()
-    plt.savefig('expansion_test_boxplots.png', dpi=300)
-    plt.show()
 
 def plot_operation_comparison(results):
     """ Plot operation count comparison """
@@ -513,7 +462,7 @@ def plot_operation_comparison(results):
     ck_complexity = [res['ck_complexity'] for res in results]
     eck_complexity = [res['eck_complexity'] for res in results]
     
-    # 归一化理论复杂度以便比较
+    # Normalize theoretical complexity for comparison purposes.
     if ck_ops and ck_complexity:
         ck_norm_factor = ck_ops[0] / ck_complexity[0] if ck_complexity[0] != 0 else 1
         eck_norm_factor = eck_ops[0] / eck_complexity[0] if eck_complexity[0] != 0 else 1
@@ -521,11 +470,11 @@ def plot_operation_comparison(results):
         ck_complexity_norm = [x * ck_norm_factor for x in ck_complexity]
         eck_complexity_norm = [x * eck_norm_factor for x in eck_complexity]
     
-    # CK操作次数分析
+    # CK operation count analysis
     plt.subplot(1, 2, 1)
     plt.plot(sizes, ck_ops, 'bo-', label='Actual Operations')
     
-    # CK理论复杂度
+    # CK theoretical complexity
     if ck_ops and ck_complexity:
         plt.plot(sizes, ck_complexity_norm, 'b--', label='Theoretical Complexity')
     
@@ -536,11 +485,11 @@ def plot_operation_comparison(results):
     plt.grid(True)
     plt.yscale('log')
     
-    # ECK操作次数分析
+    # ECK operation count analysis
     plt.subplot(1, 2, 2)
     plt.plot(sizes, eck_ops, 'ro-', label='Actual Operations')
     
-    # ECK理论复杂度
+    # ECK theoretical complexity
     if eck_ops and eck_complexity:
         plt.plot(sizes, eck_complexity_norm, 'r--', label='Theoretical Complexity')
     
@@ -564,28 +513,28 @@ def plot_time_vs_operations(results):
     ck_ops = [res['ck_ops'] for res in results]
     eck_ops = [res['eck_ops'] for res in results]
     
-    # CK时间-操作关系
+    # CK time–operation relationship
     plt.subplot(1, 2, 1)
     plt.scatter(ck_ops, ck_times, c='b', s=50)
     plt.xlabel('Number of Operations')
     plt.ylabel('Execution Time (s)')
     plt.title('CK: Time vs Operations')
     
-    # 添加线性回归线
+    # Add a linear regression line
     if len(ck_ops) > 1:
         m, b = np.polyfit(ck_ops, ck_times, 1)
         plt.plot(ck_ops, [m*x + b for x in ck_ops], 'b--', 
                 label=f'Time = {m:.2e} × Ops + {b:.2e}')
         plt.legend()
     
-    # ECK时间-操作关系
+    # ECK time–operation relationship
     plt.subplot(1, 2, 2)
     plt.scatter(eck_ops, eck_times, c='r', s=50)
     plt.xlabel('Number of Operations')
     plt.ylabel('Execution Time (s)')
     plt.title('ECK: Time vs Operations')
     
-    # 添加线性回归线
+    # Add a linear regression line.
     if len(eck_ops) > 1:
         m, b = np.polyfit(eck_ops, eck_times, 1)
         plt.plot(eck_ops, [m*x + b for x in eck_ops], 'r--', 
@@ -595,15 +544,12 @@ def plot_time_vs_operations(results):
     plt.tight_layout()
     plt.savefig('time_vs_operations.png', dpi=300)
     plt.show()
-
-# 示例用法
+# example
 if __name__ == "__main__":
     print("Starting performance analysis...")
-    
-    # 运行性能测试
+
     perf_results = performance_test(max_size=40, step=1, num_trials=5)
     
-    # 打印结果
     print("\nPerformance Results:")
     print(f"{'Size':<6} | {'CK Time (s)':<12} | {'ECK Time (s)':<12} | {'CK Keys':<8} | {'ECK Keys':<8} | {'CK Ops':<10} | {'ECK Ops':<10} | {'CK Comp':<12} | {'ECK Comp':<12}")
     for res in perf_results:
@@ -614,7 +560,7 @@ if __name__ == "__main__":
     plot_operation_comparison(perf_results)
     plot_time_vs_operations(perf_results)
     
-    # 运行扩展测试
+    # generate test
     test_data = generate_test_data(15, 20)
     exp_results = expansion_test(
         test_data['attributes'],
@@ -622,7 +568,6 @@ if __name__ == "__main__":
         test_data['embedded_fds']
     )
     
-    # 打印扩展测试结果
     print("\nExpansion Test Results:")
     print(f"{'Set':<10} | {'Size':<6} | {'Time (s)':<10}")
     for desc, size, time_val in exp_results:
