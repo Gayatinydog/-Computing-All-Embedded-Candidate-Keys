@@ -26,6 +26,40 @@ This repository implements and compares two algorithms for candidate key discove
   - Time vs. Operations plots
     ![Time vs Operations](/time_vs_operations.png)
 
+
+    ## How It Works
+### Core Components
+
+- `CandidateKeyGenerator`: Implements the Lucchesi–Osborn enumeration strategy for traditional candidate keys using closure and minimality checks.
+
+- `EmbeddedKeyGenerator`: Generalizes key semantics by supporting:
+  - embedded uniqueness constraints (eUCs),
+  - embedded functional dependencies (eFDs),
+  - local closure computations, and
+  - embedded key minimization over subsets of attributes.
+
+### Simulation & Testing
+
+- `generate_test_data()`: Creates synthetic schemas with random attribute sets, FDs, eUCs, and eFDs for controlled experiments.
+
+- `performance_test()`: Evaluates CK and ECK algorithms across increasing attribute sizes (`n=5 to 40`) and records:
+  - total runtime,
+  - number of discovered keys,
+  - number of closure/key-check operations,
+  - and theoretical cost estimates.
+
+- `expansion_test()`: Tests how the algorithm scales by fixing constraints and expanding embedding sets incrementally.
+
+### Execution Flow
+
+The main script:
+
+- Runs performance benchmarks and expansion simulations,
+- Outputs summary tables,
+- Generates comparative visualizations, and
+- Prints all results in formatted form.
+
+
 ## GUI Support
 
 
@@ -41,6 +75,13 @@ Based on the **`ceshi2.xlsx`** voter dataset and the extracted **embedded constr
 - Enter minimal attribute information
 - Automatically match an appropriate **embedded environment (E)** and **embedded key (K)**
 - Retrieve the full voter record associated with the input
+
+---
+###  Graphical User Interface (GUI)
+
+The following image shows the GUI developed for interactive ECK enumeration and result visualization:
+
+![GUI for ECK Enumeration](GUI.png)
 
 ---
 
