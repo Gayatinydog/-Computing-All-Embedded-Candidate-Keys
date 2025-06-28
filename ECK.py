@@ -88,7 +88,7 @@ class EmbeddedKeyGenerator:
             if E_fd.issubset(E):
                 proj_fds.append((X, Y))
         
-        # Convert embedded UCs to FDs (转换为FDs)
+        # Convert embedded UCs to FDs
         for E_uc, K_uc in self.K:
             if E_uc.issubset(E):
                 proj_fds.append((K_uc, E_uc))
