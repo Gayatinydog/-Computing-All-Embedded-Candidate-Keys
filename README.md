@@ -63,7 +63,7 @@ The main script:
 
 This project reproduces the algorithm originally proposed in:
 
-Lucchesi, C. L., & Osborn, S. L. (1978). *Candidate Keys for Relations*. Journal of Computer and System Sciences, 17(2), 270–279. https://doi.org/10.1016/0022-0000(78)90021-8
+Lucchesi, C. L., & Osborn, S. L. (1978). *Candidate Keys for Relations*. Journal of Computer and System Sciences, 17(2), 270–279. [https://doi.org/10.1016/0022-0000(78)90021-8](https://www.sciencedirect.com/science/article/pii/0022000078900090)
 
 This implementation is based on the theoretical description provided in the paper and is intended for research and educational purposes.
 
